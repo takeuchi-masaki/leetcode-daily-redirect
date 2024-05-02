@@ -1,0 +1,38 @@
+name: Update LeetCode Daily Problem Link
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Run every day at 00:00 UTC
+
+jobs:
+  updateLink:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install jq -y
+
+      - name: Get LeetCode Daily Problem Link
+        id: leetcode
+        run: |
+          query='query questionOfToday { activeDailyCodingChallengeQuestion { link }}'
+          curl -X POST -H "Content-Type: application/json" -d "{\"query\":\"$query\"}" https://leetcode.com/graphql > response.json
+          link=$(jq -r '.data.activeDailyCodingChallengeQuestion.link' response.json)
+          echo "::set-output name=problem_link::$link"
+
+      - name: Update HTML with LeetCode Problem Link
+        run: |
+          problem_link="${{ steps.leetcode.outputs.problem_link }}"
+          sed -i "s|<meta http-equiv=\"refresh\" content=\"0; url=.*\">|<meta http-equiv=\"refresh\" content=\"0; url=$problem_link\">|" index.html
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "github-action@example.com"
+          git add index.html
+          git commit -m "Update LeetCode Daily problem link"
+          git push
